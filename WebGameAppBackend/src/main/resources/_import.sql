@@ -1,0 +1,7 @@
+-- -- SCRIPT TO 'C:/Users/Call_me_Utka/Desktop/KPRG2/semestral_project/WebGameAppBackend/src/main/resources/_data.sql'
+--
+-- -- Delete the table
+-- IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'USERS')
+-- BEGIN
+-- DROP TABLE USERS;
+-- END
