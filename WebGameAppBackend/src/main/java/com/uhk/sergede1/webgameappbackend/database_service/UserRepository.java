@@ -1,4 +1,4 @@
-package com.uhk.sergede1.webgameappbackend.repository;
+package com.uhk.sergede1.webgameappbackend.database_service;
 
 
 import com.uhk.sergede1.webgameappbackend.model.User;

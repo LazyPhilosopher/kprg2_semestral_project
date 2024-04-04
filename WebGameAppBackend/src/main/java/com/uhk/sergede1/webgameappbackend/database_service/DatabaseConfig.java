@@ -1,4 +1,4 @@
-package com.uhk.sergede1.webgameappbackend.service;
+package com.uhk.sergede1.webgameappbackend.database_service;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

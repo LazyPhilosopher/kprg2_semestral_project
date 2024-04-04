@@ -1,8 +1,8 @@
-package com.uhk.sergede1.webgameappbackend.bean.registration;
+package com.uhk.sergede1.webgameappbackend.rest.free.registration;
 
 import com.uhk.sergede1.webgameappbackend.model.User;
-import com.uhk.sergede1.webgameappbackend.service.DatabaseOperationException;
-import com.uhk.sergede1.webgameappbackend.service.DatabaseService;
+import com.uhk.sergede1.webgameappbackend.database_service.DatabaseOperationException;
+import com.uhk.sergede1.webgameappbackend.database_service.DatabaseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

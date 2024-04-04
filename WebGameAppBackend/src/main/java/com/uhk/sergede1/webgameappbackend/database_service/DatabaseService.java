@@ -1,4 +1,4 @@
-package com.uhk.sergede1.webgameappbackend.service;
+package com.uhk.sergede1.webgameappbackend.database_service;
 
 import com.uhk.sergede1.webgameappbackend.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class DatabaseService {
@@ -79,6 +78,16 @@ public class DatabaseService {
 
         try {
             return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(User.class));
+        } catch (DataAccessException e) {
+            throw new DatabaseOperationException("Error retrieving users from database", e);
+        }
+    }
+
+    public List<User> searchUserByUsername(String username) throws DatabaseOperationException {
+        String sql = "SELECT * FROM Users WHERE username LIKE ?";
+
+        try {
+            return jdbcTemplate.query(sql, new Object[]{"%" + username + "%"}, new BeanPropertyRowMapper<>(User.class));
         } catch (DataAccessException e) {
             throw new DatabaseOperationException("Error retrieving users from database", e);
         }
