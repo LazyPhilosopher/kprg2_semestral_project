@@ -15,8 +15,11 @@ import java.util.List;
 
 @RestController
 public class UserSearchControler {
-    @Autowired
-    private DatabaseService databaseService;
+    private final DatabaseService databaseService;
+
+    public UserSearchControler(DatabaseService databaseService) {
+        this.databaseService = databaseService;
+    }
 
     @GetMapping(path = "/api/get-user-list")
     public List<User> getAllUsers() {

@@ -22,6 +22,10 @@ public class NewUserRegistration {
         System.out.println("Got POST request to register "+username+" "+password);
         try{
             databaseService.saveUser(new User(username, password));
+//            User user = databaseService.findUserByUsername(username).get();
+//            databaseService.addFriendToUser(user.getId(), 1L);
+//            System.out.println("User has friends:"+
+//                    databaseService.getFriendUserIDs(user.getId()));
         } catch (DatabaseOperationException e){
             if ("User already exists".equals(e.getMessage())) {
                 // Handle user already exists scenario

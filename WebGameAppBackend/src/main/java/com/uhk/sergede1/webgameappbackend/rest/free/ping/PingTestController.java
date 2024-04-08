@@ -1,16 +1,13 @@
-package com.uhk.sergede1.webgameappbackend.rest.tokenized.ping;
+package com.uhk.sergede1.webgameappbackend.rest.free.ping;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class ApiTestController {
-
-    @GetMapping(path = "/api/ping", produces = "application/json")
-    @ResponseBody
+public class PingTestController {
+    @GetMapping(path = "/ping", produces = "application/json")
     public ApiResponse pingResponse() {
-        return new ApiTestController.ApiResponse(200);
+        return new ApiResponse(200);
     }
 
     public static class ApiResponse {
