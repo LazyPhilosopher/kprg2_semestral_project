@@ -2,7 +2,9 @@ package com.uhk.sergede1.webgameappbackend.database_service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.uhk.sergede1.webgameappbackend.model.PendingRequest;
 import com.uhk.sergede1.webgameappbackend.model.User;
+import com.uhk.sergede1.webgameappbackend.model.UserRequestType;
 import com.uhk.sergede1.webgameappbackend.utils.Serializer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
@@ -40,6 +42,30 @@ public class DatabaseService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+
+    public void performInitialCheck(){
+        String sql = "SELECT * FROM USERS";
+
+        List<User> user_list;
+        try {
+            user_list = jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(User.class));
+            System.out.println(user_list);
+            for (User user : user_list) {
+                try{
+                    getFriendUserIDs(user.getId());
+                }catch (Exception e){
+                    // no friend table for given user exists
+                    // create new friend list for given user
+                    Set<String> set = new HashSet<>();
+                    Serializer<Set<String>> serializer = new Serializer<>();
+                    jdbcTemplate.update("INSERT INTO FriendRelations (UserID, friendUserIDs) VALUES (?, ?)",
+                            user.getId(), serializer.serialize(set));
+                }
+            }
+        } catch (Exception e){
+            System.out.println("Error occured during getting user list: " + e);
+        }
+    }
 
     // Generic method to find a single record by ID
     public <T> Optional<T> findById(Long id, Class<T> type) {
@@ -131,7 +157,6 @@ public class DatabaseService {
         }
     }
 
-
     public Set<String> getFriendUserIDs(Long userId) throws DatabaseOperationException {
         try {
             // Retrieve current friendUserIDs string
@@ -186,5 +211,35 @@ public class DatabaseService {
         } catch (DataAccessException e) {
             throw new DatabaseOperationException("Error retrieving users from database", e);
         }
+    }
+
+    public void addPendingFriendInvitation(Long senderUserId, Long receiverUserId){
+
+        UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
+                new BeanPropertyRowMapper<>(UserRequestType.class));
+        Long friend_request_type_int = friend_request_type.getId();
+
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
+                Integer.class, senderUserId, receiverUserId, friend_request_type_int);
+
+        if(count != null && count > 0){
+            System.out.println("Friend invitation already present in Pending table");
+        } else {
+            jdbcTemplate.update("INSERT INTO Pending (senderUserID, receiverUserID, type_int) VALUES (?, ?, ?)",
+                    senderUserId, receiverUserId, friend_request_type_int);
+        }
+    }
+
+    public List<Long> getFriendInvitationList(Long senderUserId){
+        UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
+                new BeanPropertyRowMapper<>(UserRequestType.class));
+        Long friend_request_type_int = friend_request_type.getId();
+
+        List<PendingRequest> pending_requests = jdbcTemplate.query("SELECT * FROM Pending WHERE receiverUserID = ? AND type_int = ?",
+                new BeanPropertyRowMapper<>(PendingRequest.class), senderUserId, friend_request_type_int);
+
+        return pending_requests.stream()
+                .map(PendingRequest::getSenderUserID)
+                .collect(Collectors.toList());
     }
 }

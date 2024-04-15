@@ -50,7 +50,7 @@ public class JwtAuthenticationController {
                                 jwtTokenRequest.password());
                 String token = tokenService.generateToken(authenticationToken);
                 System.out.println("Generated token: " + token);
-                return ResponseEntity.ok(new JwtTokenResponse(token));
+                return ResponseEntity.ok(new JwtTokenResponse(token, user.getId()));
             } else {
                 System.out.println("Invalid password for user: " + user.getUsername());
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid password");
