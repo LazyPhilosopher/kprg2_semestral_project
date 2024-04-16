@@ -1,7 +1,5 @@
 package com.uhk.sergede1.webgameappbackend.database_service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.uhk.sergede1.webgameappbackend.model.PendingRequest;
 import com.uhk.sergede1.webgameappbackend.model.User;
 import com.uhk.sergede1.webgameappbackend.model.UserRequestType;
@@ -12,24 +10,11 @@ import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.*;
 import java.security.SecureRandom;
 import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.SQLXML;
-import java.sql.Types;
 import java.util.*;
 import java.util.stream.Collectors;
-
-
-import javax.xml.parsers.ParserConfigurationException;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-import org.xml.sax.InputSource;
 
 @Service
 public class DatabaseService {
@@ -129,27 +114,31 @@ public class DatabaseService {
         }
     }
 
+    public Set<String> getUserFriendIds(Long userId) throws DatabaseOperationException {
+        List<String> currentFriends = jdbcTemplate.query(
+                "SELECT friendUserIDs FROM FriendRelations WHERE UserID = ?",
+                new Object[]{userId},
+                (ResultSet rs, int rowNum) -> rs.getString("friendUserIDs")
+        );
+
+        if (currentFriends.isEmpty()) {
+            throw new DatabaseOperationException("User not found");
+        }
+
+        String serializedFriendUserIDs = currentFriends.get(0);
+        Serializer<Set<String>> serializer = new Serializer<>();
+        return serializer.deserialize(serializedFriendUserIDs);
+    }
+
     public void addFriendToUser(Long userId, Long friendId) throws DatabaseOperationException {
         String sql = "UPDATE FriendRelations SET friendUserIDs = ? WHERE UserID = ?";
 
         try {
-            // Retrieve current friendUserIDs string
-            List<String> currentFriends = jdbcTemplate.query(
-                    "SELECT friendUserIDs FROM FriendRelations WHERE UserID = ?",
-                    new Object[]{userId},
-                    (ResultSet rs, int rowNum) -> rs.getString("friendUserIDs")
-            );
-
-            if (currentFriends.isEmpty()) {
-                throw new DatabaseOperationException("User not found");
-            }
-
-            String serializedFriendUserIDs = currentFriends.get(0);
-            Serializer<Set<String>> serializer = new Serializer<>();
-            Set<String> set = serializer.deserialize(serializedFriendUserIDs);
+            // Retrieve user's current friendUserIDs string
+            Set<String> set = getUserFriendIds(userId);
 
             set.add(friendId.toString());
-
+            Serializer<Set<String>> serializer = new Serializer<>();
             jdbcTemplate.update(sql, serializer.serialize(set), userId);
 
         } catch (DataAccessException e) {
@@ -213,8 +202,37 @@ public class DatabaseService {
         }
     }
 
-    public void addPendingFriendInvitation(Long senderUserId, Long receiverUserId){
+    public void addPendingFriendRequest(Long senderUserId, Long receiverUserId){
+        if(checkFriendInvitationPresent(senderUserId, receiverUserId)){
+            System.out.println("Friend invitation already present in Pending table");
+        } else {
+            UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
+                    new BeanPropertyRowMapper<>(UserRequestType.class));
+            jdbcTemplate.update("INSERT INTO Pending (senderUserID, receiverUserID, type_int) VALUES (?, ?, ?)",
+                    senderUserId, receiverUserId, friend_request_type.getId());
+        }
+    }
 
+    public void dropPendingFriendRequest(Long senderUserId, Long receiverUserId){
+        if(checkFriendInvitationPresent(senderUserId, receiverUserId)){
+            UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
+                    new BeanPropertyRowMapper<>(UserRequestType.class));
+            jdbcTemplate.update("DELETE FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
+                    senderUserId, receiverUserId, friend_request_type.getId());
+        } else {
+            System.out.println("Friend invitation not present in Pending table");
+        }
+    }
+
+    public void acceptFriendInvitation(Long senderUserId, Long receiverUserId) throws DatabaseOperationException {
+        if(checkFriendInvitationPresent(receiverUserId, senderUserId)){
+            addFriendToUser(senderUserId, receiverUserId);
+        } else {
+            System.out.println("Friend invitation doesn't exist in Pending table");
+        }
+    }
+
+    public boolean checkFriendInvitationPresent(Long senderUserId, Long receiverUserId){
         UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
                 new BeanPropertyRowMapper<>(UserRequestType.class));
         Long friend_request_type_int = friend_request_type.getId();
@@ -222,12 +240,7 @@ public class DatabaseService {
         Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
                 Integer.class, senderUserId, receiverUserId, friend_request_type_int);
 
-        if(count != null && count > 0){
-            System.out.println("Friend invitation already present in Pending table");
-        } else {
-            jdbcTemplate.update("INSERT INTO Pending (senderUserID, receiverUserID, type_int) VALUES (?, ?, ?)",
-                    senderUserId, receiverUserId, friend_request_type_int);
-        }
+        return count != null && count > 0;
     }
 
     public List<Long> getFriendInvitationList(Long senderUserId){
@@ -241,5 +254,17 @@ public class DatabaseService {
         return pending_requests.stream()
                 .map(PendingRequest::getSenderUserID)
                 .collect(Collectors.toList());
+    }
+
+    public List<User> getUserFriendList(Long senderUserId) throws DatabaseOperationException {
+        String sql = "SELECT * FROM Users WHERE id = ?";
+
+        Set<String> userFriendIds = getUserFriendIds(senderUserId);
+        List<User> userFriendList = new ArrayList<>();
+
+        for (String friendId : userFriendIds) {
+            userFriendList.add(jdbcTemplate.queryForObject(sql, new BeanPropertyRowMapper<>(User.class),  friendId));
+        }
+        return userFriendList;
     }
 }
