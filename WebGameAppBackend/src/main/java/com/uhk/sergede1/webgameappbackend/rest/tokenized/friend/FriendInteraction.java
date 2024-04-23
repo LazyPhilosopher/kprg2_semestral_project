@@ -75,6 +75,10 @@ public class FriendInteraction {
         Long sender_user_id = singleUserResuestBody.senderUserID();
 
         List<User> users =  databaseService.getUserFriendList(sender_user_id);
+        for (User user : users){
+            user.setRole(null);
+            user.setPassword(null);
+        }
 
         if (users.isEmpty()) {
             return ResponseEntity.noContent().build();
@@ -82,4 +86,21 @@ public class FriendInteraction {
             return ResponseEntity.ok(users);
         }
     }
+
+    @PostMapping(path = "/api/remove-user-from-friendlist")
+    public  void  remove_user_from_friendlist(@RequestBody TwoUserResuestBody twoUserResuestBody) throws DatabaseOperationException {
+        Long sender_user_id = twoUserResuestBody.senderUserID();
+        Long friend_user_id = twoUserResuestBody.receiverUserID();
+
+        Set<String> user_friendlist = databaseService.getUserFriendIds(sender_user_id);
+
+        if(user_friendlist.contains(friend_user_id.toString())){
+            databaseService.removeFriendFromUser(friend_user_id, sender_user_id);
+            databaseService.removeFriendFromUser(sender_user_id, friend_user_id);
+            System.out.println("User["+friend_user_id+"] removed user["+sender_user_id+"] from friendlist!");
+        } else {
+            System.out.println("User["+friend_user_id+"] is not in user's["+sender_user_id+"] friendlist!");
+        }
+    }
+
 }

@@ -1,9 +1,11 @@
 package com.uhk.sergede1.webgameappbackend.database_service;
 
+import com.uhk.sergede1.webgameappbackend.model.Chat;
 import com.uhk.sergede1.webgameappbackend.model.PendingRequest;
 import com.uhk.sergede1.webgameappbackend.model.User;
 import com.uhk.sergede1.webgameappbackend.model.UserRequestType;
 import com.uhk.sergede1.webgameappbackend.utils.Serializer;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.security.SecureRandom;
 import java.sql.ResultSet;
+import java.sql.Time;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -146,6 +149,22 @@ public class DatabaseService {
         }
     }
 
+    public void removeFriendFromUser(Long userId, Long friendId) throws DatabaseOperationException {
+        String sql = "UPDATE FriendRelations SET friendUserIDs = ? WHERE UserID = ?";
+
+        try {
+            // Retrieve user's current friendUserIDs string
+            Set<String> set = getUserFriendIds(userId);
+
+            set.remove(friendId.toString());
+            Serializer<Set<String>> serializer = new Serializer<>();
+            jdbcTemplate.update(sql, serializer.serialize(set), userId);
+
+        } catch (DataAccessException e) {
+            throw new DatabaseOperationException("Error adding friend to user", e);
+        }
+    }
+
     public Set<String> getFriendUserIDs(Long userId) throws DatabaseOperationException {
         try {
             // Retrieve current friendUserIDs string
@@ -255,7 +274,6 @@ public class DatabaseService {
                 .map(PendingRequest::getSenderUserID)
                 .collect(Collectors.toList());
     }
-
     public List<User> getUserFriendList(Long senderUserId) throws DatabaseOperationException {
         String sql = "SELECT * FROM Users WHERE id = ?";
 
@@ -267,4 +285,59 @@ public class DatabaseService {
         }
         return userFriendList;
     }
+
+    @Transactional
+    public Long getTwoUserChatID(Long user1, Long user2) {
+        // Query for an existing chat between the two users
+        Chat chat = findExistingChat(user1, user2);
+
+        // If a chat exists, return its ID
+        if (chat != null) {
+            return chat.getId();
+        }
+
+        // If no chat exists, create a new chat and return its ID
+        Chat newChat = createNewChat(user1, user2);
+
+        return newChat.getId();
+    }
+
+    private Chat findExistingChat(Long user1, Long user2) {
+        // Query for an existing chat between the two users
+        try {
+            Chat chat = jdbcTemplate.queryForObject(
+                    "SELECT * FROM CHATS WHERE (USER1ID = ? AND USER2ID = ?) OR (USER1ID = ? AND USER2ID = ?)",
+                    new BeanPropertyRowMapper<>(Chat.class), user1, user2, user2, user1);
+            return chat;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Chat createNewChat(Long user1, Long user2) {
+        // Create a new chat and return its ID
+        // Here you can implement your logic to generate a new chat ID
+//        Long newChatId = generateNewChatId();  // Replace with your logic to generate a chat ID
+
+        jdbcTemplate.update(
+                "INSERT INTO CHATS (USER1ID, USER2ID) VALUES (?, ?)",
+                user1, user2);
+
+        // Retrieve the newly created Chat object from the database
+        Chat newChat = jdbcTemplate.queryForObject(
+                "SELECT * FROM CHATS WHERE (USER1ID = ? AND USER2ID = ?) OR (USER1ID = ? AND USER2ID = ?)",
+                new BeanPropertyRowMapper<>(Chat.class),
+                user1, user2, user2, user1);
+
+        return newChat;
+    }
+
+    public void appendNewMessage(Long sender_id, Long chat_id, String text){
+        Time timestamp = new Time(System.currentTimeMillis());
+        jdbcTemplate.update(
+                "INSERT INTO MESSAGES (SENDERUSERID, TEXT, TIMESTAMP, CHATID) VALUES (?, ?, ?, ?)",
+                sender_id, text, timestamp, chat_id);
+    }
+
+
 }
