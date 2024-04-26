@@ -7,6 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,17 +42,21 @@ public class JwtAuthenticationController {
 
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            System.out.println("Found user: " + user);
+            BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+//            System.out.println("Found user: " + user);
 
             // Verify password
-//            if (passwordEncoder.matches(jwtTokenRequest.password(), user.getPassword())) {
-            System.out.println("Backend: " + user.getPassword() + " Frontend password:  " + jwtTokenRequest.password());
-            if (jwtTokenRequest.password().equals(user.getPassword())) {
+//            if (hashedPassword.equals(user.getPassword())) {
+            if (passwordEncoder.matches(jwtTokenRequest.password(), user.getPassword())){
                 var authenticationToken =
                         new UsernamePasswordAuthenticationToken(
                                 jwtTokenRequest.username(),
                                 jwtTokenRequest.password());
                 String token = tokenService.generateToken(authenticationToken);
+
+                // save token created for this user
+                this.databaseService.saveUserToken(user.getId(), token);
+
                 System.out.println("Generated token: " + token);
                 return ResponseEntity.ok(new JwtTokenResponse(token, user.getId()));
             } else {

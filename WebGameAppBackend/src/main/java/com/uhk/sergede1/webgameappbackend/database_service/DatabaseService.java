@@ -1,9 +1,7 @@
 package com.uhk.sergede1.webgameappbackend.database_service;
 
-import com.uhk.sergede1.webgameappbackend.model.Chat;
-import com.uhk.sergede1.webgameappbackend.model.PendingRequest;
-import com.uhk.sergede1.webgameappbackend.model.User;
-import com.uhk.sergede1.webgameappbackend.model.UserRequestType;
+import com.uhk.sergede1.webgameappbackend.database_service.exceptions.UserNotFoundException;
+import com.uhk.sergede1.webgameappbackend.model.*;
 import com.uhk.sergede1.webgameappbackend.utils.Serializer;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,10 +10,12 @@ import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.security.SecureRandom;
 import java.sql.ResultSet;
-import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,6 +24,7 @@ public class DatabaseService {
 
     private final JdbcTemplate jdbcTemplate;
     private static final SecureRandom random = new SecureRandom();
+    private HashMap<String, Long> token_user_id_map = new HashMap<>();
 
     @Autowired
     public DatabaseService(JdbcTemplate jdbcTemplate) {
@@ -53,6 +54,18 @@ public class DatabaseService {
         } catch (Exception e){
             System.out.println("Error occured during getting user list: " + e);
         }
+    }
+
+    public void saveUserToken(Long user_id, String token){
+        this.token_user_id_map.put(token, user_id);
+    }
+
+    public Long getUserIdFromToken(String token) throws UserNotFoundException {
+        Long userId = this.token_user_id_map.get(token);
+        if (userId == null) {
+            throw new UserNotFoundException("User not found for token: " + token);
+        }
+        return userId;
     }
 
     // Generic method to find a single record by ID
@@ -332,12 +345,33 @@ public class DatabaseService {
         return newChat;
     }
 
-    public void appendNewMessage(Long sender_id, Long chat_id, String text){
-        Time timestamp = new Time(System.currentTimeMillis());
-        jdbcTemplate.update(
-                "INSERT INTO MESSAGES (SENDERUSERID, TEXT, TIMESTAMP, CHATID) VALUES (?, ?, ?, ?)",
-                sender_id, text, timestamp, chat_id);
+    public Chat getChatByID(Long chat_id){
+        try {
+            Chat chat = jdbcTemplate.queryForObject(
+                    "SELECT * FROM CHATS WHERE ID = ?",
+                    new BeanPropertyRowMapper<>(Chat.class),chat_id);
+            return chat;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
+    public void appendNewMessage(Long sender_id, Long chat_id, String text){
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        jdbcTemplate.update(
+                "INSERT INTO MESSAGES (SENDERUSERID, TEXT, TIMESTAMP, CHATID) VALUES (?, ?, ?, ?)",
+                sender_id, text, timestamp,  chat_id);
+    }
+
+    public List<Message> getMessagesForChat(Long chatId) throws DatabaseOperationException {
+
+        String sql = "SELECT * FROM Messages WHERE chatID = ?";
+
+        try {
+            return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(Message.class), chatId);
+        } catch (DataAccessException e) {
+            throw new DatabaseOperationException("Error retrieving users from database", e);
+        }
+    }
 
 }

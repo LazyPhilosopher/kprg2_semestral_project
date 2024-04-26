@@ -1,7 +1,7 @@
 package com.uhk.sergede1.webgameappbackend.model;
 
 import jakarta.persistence.*;
-import java.sql.Time;
+import java.sql.Timestamp;
 
 @Entity
 @Table(name = "MESSAGES")
@@ -18,7 +18,7 @@ public class Message {
     private String text;
 
     @Column(name = "TIMESTAMP", nullable = false)
-    private Time timestamp;
+    private Timestamp timestamp;
 
     @Column(name = "CHATID", nullable = false)
     private Long chatID;
@@ -27,7 +27,7 @@ public class Message {
     public Message() {
     }
 
-    public Message(Long senderUserID, String text, Time timestamp, Long chatID) {
+    public Message(Long senderUserID, String text, Timestamp timestamp, Long chatID) {
         this.senderUserID = senderUserID;
         this.text = text;
         this.timestamp = timestamp;
@@ -59,11 +59,11 @@ public class Message {
         this.text = text;
     }
 
-    public Time getTimestamp() {
+    public Timestamp getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Time timestamp) {
+    public void setTimestamp(Timestamp timestamp) {
         this.timestamp = timestamp;
     }
 

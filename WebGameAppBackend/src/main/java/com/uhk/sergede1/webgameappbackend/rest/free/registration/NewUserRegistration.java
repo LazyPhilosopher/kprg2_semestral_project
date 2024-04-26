@@ -4,6 +4,7 @@ import com.uhk.sergede1.webgameappbackend.model.User;
 import com.uhk.sergede1.webgameappbackend.database_service.DatabaseOperationException;
 import com.uhk.sergede1.webgameappbackend.database_service.DatabaseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,13 +20,12 @@ public class NewUserRegistration {
         String username = registrationRequest.username();
         String password = registrationRequest.password();
 
-        System.out.println("Got POST request to register "+username+" "+password);
+        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        String hashedPassword = passwordEncoder.encode(password);
+
+//        System.out.println("Got POST request to register "+username+" "+hashedPassword);
         try{
-            databaseService.saveUser(new User(username, password));
-//            User user = databaseService.findUserByUsername(username).get();
-//            databaseService.addFriendToUser(user.getId(), 1L);
-//            System.out.println("User has friends:"+
-//                    databaseService.getFriendUserIDs(user.getId()));
+            databaseService.saveUser(new User(username, hashedPassword));
         } catch (DatabaseOperationException e){
             if ("User already exists".equals(e.getMessage())) {
                 // Handle user already exists scenario

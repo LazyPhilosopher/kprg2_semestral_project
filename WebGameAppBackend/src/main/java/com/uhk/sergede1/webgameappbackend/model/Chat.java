@@ -2,6 +2,8 @@ package com.uhk.sergede1.webgameappbackend.model;
 
 import jakarta.persistence.*;
 
+import java.util.Objects;
+
 @Entity
 @Table(name = "CHATS")
 public class Chat {
@@ -48,6 +50,10 @@ public class Chat {
 
     public void setUser2ID(Long user2ID) {
         this.user2ID = user2ID;
+    }
+
+    public boolean userIDPresentInChat(Long userID){
+        return Objects.equals(this.user1ID, userID) || Objects.equals(this.user2ID, userID);
     }
 
 }
