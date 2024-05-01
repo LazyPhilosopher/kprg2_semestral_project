@@ -287,6 +287,19 @@ public class DatabaseService {
                 .map(PendingRequest::getSenderUserID)
                 .collect(Collectors.toList());
     }
+
+    public List<Long> getNewGameInvitationList(Long senderUserId){
+        UserRequestType new_game_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'nwgmrqst'",
+                new BeanPropertyRowMapper<>(UserRequestType.class));
+        Long new_game_request_type_int = new_game_request_type.getId();
+
+        List<PendingRequest> pending_requests = jdbcTemplate.query("SELECT * FROM Pending WHERE receiverUserID = ? AND type_int = ?",
+                new BeanPropertyRowMapper<>(PendingRequest.class), senderUserId, new_game_request_type_int);
+
+        return pending_requests.stream()
+                .map(PendingRequest::getSenderUserID)
+                .collect(Collectors.toList());
+    }
     public List<User> getUserFriendList(Long senderUserId) throws DatabaseOperationException {
         String sql = "SELECT * FROM Users WHERE id = ?";
 
@@ -374,4 +387,118 @@ public class DatabaseService {
         }
     }
 
+    public GameRound fetchTwoPlayerRound(Long user1id, Long user2id){
+        try {
+            GameRound game = jdbcTemplate.queryForObject(
+                    "SELECT * FROM GAMEROUNDS WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR (userPlayer1ID = ? AND userPlayer2ID = ?)",
+                    new BeanPropertyRowMapper<>(GameRound.class), user1id, user2id, user2id, user1id);
+            return game;
+        } catch (Exception e) {
+            System.out.println(e);
+            return null;
+        }
+    }
+
+    public GameRound fetchTwoPlayerRound(Long game_id){
+        try {
+            GameRound game = jdbcTemplate.queryForObject(
+                    "SELECT * FROM GAMEROUNDS WHERE (id = ?)",
+                    new BeanPropertyRowMapper<>(GameRound.class), game_id);
+            return game;
+        } catch (Exception e) {
+            System.out.println(e);
+            return null;
+        }
+    }
+
+    @Transactional
+    public void createTwoPlayerRound(Long user1id, Long user2id) {
+        char[][] board_matrix = new char[8][8];
+        Serializer<char[][]> serializer = new Serializer<>();
+
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                board_matrix[i][j] = ' ';
+            }
+        }
+
+        try {
+            String insertQuery = "INSERT INTO GAMEROUNDS (userPlayer1ID, userPlayer2ID, boardStatus, active, lastMove) " +
+                    "VALUES (?, ?, ?, ?, ?)";
+            jdbcTemplate.update(insertQuery, user1id, user2id, serializer.serialize(board_matrix), true, user2id);
+        } catch (Exception e) {
+            System.out.println(e);
+            // Handle exception
+        }
+    }
+
+    public char[][] getBoardConfiguration(GameRound game){
+        Serializer<char[][]> serializer = new Serializer<>();
+        return serializer.deserialize(game.getBoardStatus());
+    }
+
+    public void setBoardConfiguration(Long gameID, char sign, int row, int column){
+        GameRound game = this.fetchTwoPlayerRound(gameID);
+
+        Serializer<char[][]> serializer = new Serializer<>();
+        char [][] game_configuration = serializer.deserialize(game.getBoardStatus());
+        game_configuration[row][column] = sign;
+
+        String sql = "UPDATE GameRounds SET BoardStatus = ? WHERE ID = ?";
+        jdbcTemplate.update(sql, serializer.serialize(game_configuration), gameID);
+    }
+
+    public void takeBoardCell(Long gameID, Long playerID, int row, int column){
+        GameRound game = this.fetchTwoPlayerRound(gameID);
+
+        if(game.getUserPlayer1ID().equals(playerID)){
+            setBoardConfiguration(gameID, 'X', row, column);
+            String sql = "UPDATE GameRounds SET lastMove = ? WHERE ID = ?";
+            jdbcTemplate.update(sql, game.getUserPlayer1ID(), gameID);
+        } else {
+            setBoardConfiguration(gameID, 'O', row, column);
+            String sql = "UPDATE GameRounds SET lastMove = ? WHERE ID = ?";
+            jdbcTemplate.update(sql, game.getUserPlayer2ID(), gameID);
+        }
+    }
+
+    public boolean checkPendingItemPresent(String abbreviation, Long senderUserId, Long receiverUserId){
+        UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = ?",
+                new BeanPropertyRowMapper<>(UserRequestType.class),  abbreviation);
+        Long friend_request_type_int = friend_request_type.getId();
+
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
+                Integer.class, senderUserId, receiverUserId, friend_request_type_int);
+
+        return count != null && count > 0;
+    }
+    public void performNewGameRequest(Long senderID, Long receiverID){
+        String abbreviation = "nwgmrqst";
+        UserRequestType new_game_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = ?",
+                new BeanPropertyRowMapper<>(UserRequestType.class), abbreviation);
+
+        if (checkPendingItemPresent(abbreviation, receiverID, senderID)){
+            // remove New Game Invitation
+            jdbcTemplate.update("DELETE FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
+                    receiverID, senderID, new_game_request_type.getId());
+            jdbcTemplate.update("DELETE FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
+                    senderID, receiverID, new_game_request_type.getId());
+
+            // create new game
+            createTwoPlayerRound(receiverID, senderID);
+
+        } else if (!checkPendingItemPresent(abbreviation, senderID, receiverID)) {
+            // create New Game Invitation
+            jdbcTemplate.update("INSERT INTO Pending (senderUserID, receiverUserID, type_int) VALUES (?, ?, ?)",
+                    senderID, receiverID, new_game_request_type.getId());
+        }
+    }
+
+    public void performSurrenderRequest(Long senderID, Long receiverID){
+        GameRound game = fetchTwoPlayerRound(senderID, receiverID);
+        if(game != null){
+            jdbcTemplate.update("UPDATE GameRounds SET victor = ? WHERE ID = ?", receiverID, game.getId());
+            jdbcTemplate.update("UPDATE GameRounds SET active = ? WHERE ID = ?", false, game.getId());
+        }
+    }
 }
