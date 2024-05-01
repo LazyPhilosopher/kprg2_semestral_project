@@ -423,6 +423,12 @@ public class DatabaseService {
         }
 
         try {
+            // Delete previous game
+            String deleteQuery = "DELETE FROM GAMEROUNDS " +
+                    "WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR " +
+                    "(userPlayer1ID = ? AND userPlayer2ID = ?)";
+            jdbcTemplate.update(deleteQuery, user1id, user2id, user2id, user1id);
+
             String insertQuery = "INSERT INTO GAMEROUNDS (userPlayer1ID, userPlayer2ID, boardStatus, active, lastMove) " +
                     "VALUES (?, ?, ?, ?, ?)";
             jdbcTemplate.update(insertQuery, user1id, user2id, serializer.serialize(board_matrix), true, user2id);
@@ -497,8 +503,16 @@ public class DatabaseService {
     public void performSurrenderRequest(Long senderID, Long receiverID){
         GameRound game = fetchTwoPlayerRound(senderID, receiverID);
         if(game != null){
-            jdbcTemplate.update("UPDATE GameRounds SET victor = ? WHERE ID = ?", receiverID, game.getId());
-            jdbcTemplate.update("UPDATE GameRounds SET active = ? WHERE ID = ?", false, game.getId());
+            setGameVictor(game.getId(), receiverID);
+            setGameActive(game.getId(), false);
         }
+    }
+
+    public void setGameVictor(Long GameID, Long victorID){
+        jdbcTemplate.update("UPDATE GameRounds SET victor = ? WHERE ID = ?", victorID, GameID);
+    }
+
+    public void setGameActive(Long GameID, boolean status){
+        jdbcTemplate.update("UPDATE GameRounds SET active = ? WHERE ID = ?", status, GameID);
     }
 }
