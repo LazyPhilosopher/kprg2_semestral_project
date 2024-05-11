@@ -390,7 +390,7 @@ public class DatabaseService {
     public GameRound fetchTwoPlayerRound(Long user1id, Long user2id){
         try {
             GameRound game = jdbcTemplate.queryForObject(
-                    "SELECT * FROM GAMEROUNDS WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR (userPlayer1ID = ? AND userPlayer2ID = ?)",
+                    "SELECT TOP 1 * FROM GAMEROUNDS WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR (userPlayer1ID = ? AND userPlayer2ID = ?) ORDER BY timestamp DESC",
                     new BeanPropertyRowMapper<>(GameRound.class), user1id, user2id, user2id, user1id);
             return game;
         } catch (Exception e) {
@@ -424,14 +424,15 @@ public class DatabaseService {
 
         try {
             // Delete previous game
-            String deleteQuery = "DELETE FROM GAMEROUNDS " +
-                    "WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR " +
-                    "(userPlayer1ID = ? AND userPlayer2ID = ?)";
-            jdbcTemplate.update(deleteQuery, user1id, user2id, user2id, user1id);
+//            String deleteQuery = "DELETE FROM GAMEROUNDS " +
+//                    "WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR " +
+//                    "(userPlayer1ID = ? AND userPlayer2ID = ?)";
+//            jdbcTemplate.update(deleteQuery, user1id, user2id, user2id, user1id);
 
-            String insertQuery = "INSERT INTO GAMEROUNDS (userPlayer1ID, userPlayer2ID, boardStatus, active, lastMove) " +
-                    "VALUES (?, ?, ?, ?, ?)";
-            jdbcTemplate.update(insertQuery, user1id, user2id, serializer.serialize(board_matrix), true, user2id);
+            Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+            String insertQuery = "INSERT INTO GAMEROUNDS (userPlayer1ID, userPlayer2ID, boardStatus, active, lastMove, timestamp) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)";
+            jdbcTemplate.update(insertQuery, user1id, user2id, serializer.serialize(board_matrix), true, user2id, timestamp);
         } catch (Exception e) {
             System.out.println(e);
             // Handle exception

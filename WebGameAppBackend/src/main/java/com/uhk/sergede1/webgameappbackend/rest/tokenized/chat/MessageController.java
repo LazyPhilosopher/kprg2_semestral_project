@@ -48,9 +48,6 @@ public class MessageController {
         } catch(UserNotFoundException e){
             System.out.println("ERROR: User token not found in token database");
         }
-
-
-
     }
 
     @GetMapping("/api/get-chat-messages/{chatId}")

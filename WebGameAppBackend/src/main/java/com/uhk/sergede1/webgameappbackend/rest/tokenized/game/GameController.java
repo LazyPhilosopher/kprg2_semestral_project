@@ -61,7 +61,8 @@ public class GameController {
                 game.getLastMove(),
                 game.getVictor(),
                 game.getUserPlayer1ID(),
-                game.getUserPlayer2ID());
+                game.getUserPlayer2ID(),
+                game.getTimestamp());
     }
 
     @PostMapping("/api/set-board-cell")
@@ -85,6 +86,11 @@ public class GameController {
                     Long game_id = game.getId();
                     int row = boardControlRequestBody.row();
                     int column = boardControlRequestBody.column();
+                    game = databaseService.fetchTwoPlayerRound(request_user_id, boardControlRequestBody.opponentID());
+                    //check if board cell is already taken
+                    if (databaseService.getBoardConfiguration(game)[row][column] != ' '){
+                        return;
+                    }
                     databaseService.takeBoardCell(game_id, request_user_id, row, column);
 
                     Serializer<char[][]> serializer = new Serializer<>();

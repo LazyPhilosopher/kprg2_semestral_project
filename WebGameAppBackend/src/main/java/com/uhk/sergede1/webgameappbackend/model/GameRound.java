@@ -2,6 +2,7 @@ package com.uhk.sergede1.webgameappbackend.model;
 
 import jakarta.persistence.*;
 
+import java.sql.Timestamp;
 import java.util.Objects;
 
 @Entity
@@ -30,6 +31,9 @@ public class GameRound {
 
     @Column(name = "lastMove")
     private Long lastMove;
+
+    @Column(name = "timestamp", nullable = false)
+    private Timestamp timestamp;
 
     // Constructors
 
@@ -93,4 +97,13 @@ public class GameRound {
     public void setActive(boolean active) {
         this.active = active;
     }
+
+    public Timestamp getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(Timestamp timestamp) {
+        this.timestamp = timestamp;
+    }
+
 }
