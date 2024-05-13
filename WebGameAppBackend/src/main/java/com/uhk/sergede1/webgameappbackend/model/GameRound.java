@@ -3,7 +3,6 @@ package com.uhk.sergede1.webgameappbackend.model;
 import jakarta.persistence.*;
 
 import java.sql.Timestamp;
-import java.util.Objects;
 
 @Entity
 @Table(name = "GAMEROUNDS")

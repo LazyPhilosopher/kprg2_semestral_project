@@ -3,12 +3,8 @@ package com.uhk.sergede1.webgameappbackend.rest.tokenized.game;
 import com.uhk.sergede1.webgameappbackend.database_service.DatabaseOperationException;
 import com.uhk.sergede1.webgameappbackend.database_service.DatabaseService;
 import com.uhk.sergede1.webgameappbackend.database_service.exceptions.UserNotFoundException;
-import com.uhk.sergede1.webgameappbackend.model.Chat;
 import com.uhk.sergede1.webgameappbackend.model.GameRound;
-import com.uhk.sergede1.webgameappbackend.model.Message;
 import com.uhk.sergede1.webgameappbackend.model.User;
-import com.uhk.sergede1.webgameappbackend.rest.tokenized.friend.MessageRequestBody;
-import com.uhk.sergede1.webgameappbackend.rest.tokenized.friend.SingleUserRequestBody;
 import com.uhk.sergede1.webgameappbackend.utils.Serializer;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -19,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 @RestController
 public class GameController {
