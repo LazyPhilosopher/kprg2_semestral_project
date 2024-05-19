@@ -5,7 +5,6 @@ import com.uhk.sergede1.webgameappbackend.database_service.DatabaseService;
 import com.uhk.sergede1.webgameappbackend.database_service.exceptions.UserNotFoundException;
 import com.uhk.sergede1.webgameappbackend.model.Chat;
 import com.uhk.sergede1.webgameappbackend.model.Message;
-import com.uhk.sergede1.webgameappbackend.model.User;
 import com.uhk.sergede1.webgameappbackend.rest.tokenized.friend.MessageRequestBody;
 import org.junit.Before;
 import org.junit.Test;

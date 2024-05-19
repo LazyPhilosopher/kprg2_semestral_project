@@ -24,6 +24,7 @@ public class Message {
     @Column(name = "CHATID", nullable = false)
     private Long chatID;
 
+
     // Constructors
     public Message() {
     }
@@ -75,4 +76,5 @@ public class Message {
     public void setChatID(Long chatID) {
         this.chatID = chatID;
     }
+
 }

@@ -11,10 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.*;
 
 @RestController
-public class FriendInteraction {
+public class FriendInteractionController {
     private final DatabaseService databaseService;
 
-    public FriendInteraction(DatabaseService databaseService) {
+    public FriendInteractionController(DatabaseService databaseService) {
         this.databaseService = databaseService;
     }
 

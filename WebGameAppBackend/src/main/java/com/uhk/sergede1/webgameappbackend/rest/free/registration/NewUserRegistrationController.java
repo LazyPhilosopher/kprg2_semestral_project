@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class NewUserRegistration {
+public class NewUserRegistrationController {
 
     @Autowired
     private DatabaseService databaseService;
@@ -23,7 +23,6 @@ public class NewUserRegistration {
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
         String hashedPassword = passwordEncoder.encode(password);
 
-//        System.out.println("Got POST request to register "+username+" "+hashedPassword);
         try{
             databaseService.saveUser(new User(username, hashedPassword));
         } catch (DatabaseOperationException e){

@@ -6,6 +6,7 @@ import com.uhk.sergede1.webgameappbackend.database_service.exceptions.UserNotFou
 import com.uhk.sergede1.webgameappbackend.model.GameRound;
 import com.uhk.sergede1.webgameappbackend.model.User;
 import com.uhk.sergede1.webgameappbackend.utils.Serializer;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,7 +28,12 @@ public class GameController {
     @GetMapping("/api/new-game/{user1id}/{user2id}")
     public void newGameRequest(@PathVariable("user1id")  Long user1_id,
                                     @PathVariable("user2id")  Long user2_id) throws DatabaseOperationException {
-        GameRound game = databaseService.fetchTwoPlayerRound(user1_id, user2_id);
+        GameRound game;
+        try{
+            game = databaseService.fetchTwoPlayerRound(user1_id, user2_id);
+        } catch (EmptyResultDataAccessException e){
+            game = null;
+        }
         if(game == null || !game.isActive()){
             databaseService.performNewGameRequest(user1_id, user2_id);
         }
@@ -45,7 +51,12 @@ public class GameController {
     @GetMapping("/api/get-board/{user1id}/{user2id}")
     public BoardResponse getGameStatus(@PathVariable("user1id")  Long user1_id,
                                          @PathVariable("user2id")  Long user2_id) throws DatabaseOperationException {
-        GameRound game = databaseService.fetchTwoPlayerRound(user1_id, user2_id);
+        GameRound game;
+        try{
+            game = databaseService.fetchTwoPlayerRound(user1_id, user2_id);
+        } catch (EmptyResultDataAccessException e){
+            game = null;
+        }
         if(game == null){
 //            databaseService.createTwoPlayerRound(user1_id, user2_id);
 //            game = databaseService.fetchTwoPlayerRound(user1_id, user2_id);
@@ -204,5 +215,12 @@ public class GameController {
 
         // If no sequence of 3 or more X or O is found, return null
         return null;
+    }
+
+    @GetMapping("/api/get-top-player-list")
+    public ResponseEntity<List<TopPlayerStats>> getTopPlayerRanking() {
+        List<TopPlayerStats> topPlayers = databaseService.getTopPlayerRankingView();
+
+        return ResponseEntity.ok().body(topPlayers);
     }
 }

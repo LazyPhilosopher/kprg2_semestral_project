@@ -2,10 +2,12 @@ package com.uhk.sergede1.webgameappbackend.database_service;
 
 import com.uhk.sergede1.webgameappbackend.database_service.exceptions.UserNotFoundException;
 import com.uhk.sergede1.webgameappbackend.model.*;
+import com.uhk.sergede1.webgameappbackend.rest.tokenized.game.TopPlayerStats;
 import com.uhk.sergede1.webgameappbackend.utils.Serializer;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -110,19 +112,19 @@ public class DatabaseService {
         if (userOptional.isPresent()) {
             throw new DatabaseOperationException("User already exists");
         } else {
-            String users_insert_sql = "INSERT INTO Users (username, password, role) VALUES (?, ?, 'User')";
-            String friend_relation_insert_sql = "INSERT INTO FriendRelations (UserID, friendUserIDs) VALUES (?, ?)";
+            String users_insert_sql = "INSERT INTO Users (username, password) VALUES (?, ?)";
+//            String friend_relation_insert_sql = "INSERT INTO FriendRelations (UserID, friendUserIDs) VALUES (?, ?)";
 
             try {
                 jdbcTemplate.update(users_insert_sql, user.getUsername(), user.getPassword());
 
-                Optional<User> optional_new_user = findUserByUsername(user.getUsername());
-                User new_user = optional_new_user.get();
-
-                // Initialize friendUserIDs as an empty set and serialize it
-                Set<String> set = new HashSet<>();
-                Serializer<Set<String>> serializer = new Serializer<>();
-                jdbcTemplate.update(friend_relation_insert_sql, new_user.getId(), serializer.serialize(set));
+//                Optional<User> optional_new_user = findUserByUsername(user.getUsername());
+//                User new_user = optional_new_user.get();
+//
+//                // Initialize friendUserIDs as an empty set and serialize it
+//                Set<String> set = new HashSet<>();
+//                Serializer<Set<String>> serializer = new Serializer<>();
+//                jdbcTemplate.update(friend_relation_insert_sql, new_user.getId(), serializer.serialize(set));
 
             } catch (DataAccessException e) {
                 throw new DatabaseOperationException("Error inserting user into database", e);
@@ -235,13 +237,27 @@ public class DatabaseService {
     }
 
     public void addPendingFriendRequest(Long senderUserId, Long receiverUserId){
-        if(checkFriendInvitationPresent(senderUserId, receiverUserId)){
+        List<User> userList;
+        boolean containsReceiverUserId = false;
+        try{
+            userList = getUserFriendList(senderUserId);
+            containsReceiverUserId = userList.stream()
+                    .anyMatch(user -> user.getId() != null && user.getId().equals(receiverUserId));
+        } catch (DatabaseOperationException e) {
+            System.out.println("Unexpected exception occured: " + e);
+        }
+
+        if(containsReceiverUserId){
+            System.out.println("Two users are friends already");
+        }
+        else if(checkFriendInvitationPresent(senderUserId, receiverUserId)){
             System.out.println("Friend invitation already present in Pending table");
         } else {
-            UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
-                    new BeanPropertyRowMapper<>(UserRequestType.class));
-            jdbcTemplate.update("INSERT INTO Pending (senderUserID, receiverUserID, type_int) VALUES (?, ?, ?)",
-                    senderUserId, receiverUserId, friend_request_type.getId());
+//            UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
+//                    new BeanPropertyRowMapper<>(UserRequestType.class));
+//            jdbcTemplate.update("INSERT INTO Pending (senderUserID, receiverUserID, type_int) VALUES (?, ?, ?)",
+//                    senderUserId, receiverUserId, friend_request_type.getId());
+            jdbcTemplate.update("EXEC InsertPendingFriendRequest ?, ?", senderUserId, receiverUserId);
         }
     }
 
@@ -265,14 +281,18 @@ public class DatabaseService {
     }
 
     public boolean checkFriendInvitationPresent(Long senderUserId, Long receiverUserId){
-        UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
-                new BeanPropertyRowMapper<>(UserRequestType.class));
-        Long friend_request_type_int = friend_request_type.getId();
-
-        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
-                Integer.class, senderUserId, receiverUserId, friend_request_type_int);
-
-        return count != null && count > 0;
+//        UserRequestType friend_request_type = jdbcTemplate.queryForObject("SELECT * FROM Type WHERE abbreviation = 'friendrqst'",
+//                new BeanPropertyRowMapper<>(UserRequestType.class));
+//        Long friend_request_type_int = friend_request_type.getId();
+//
+//        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM Pending WHERE senderUserID = ? AND receiverUserID = ? AND type_int = ?",
+//                Integer.class, senderUserId, receiverUserId, friend_request_type_int);
+//
+//        return count != null && count > 0;
+//        System.out.println("checkFriendInvitationPresent");
+        String sql = "SELECT dbo.CheckFriendInvitationPresent(?, ?)";
+        Boolean isPresent = jdbcTemplate.queryForObject(sql, Boolean.class, senderUserId, receiverUserId);
+        return isPresent != null && isPresent;
     }
 
     public List<Long> getFriendInvitationList(Long senderUserId){
@@ -307,7 +327,12 @@ public class DatabaseService {
         List<User> userFriendList = new ArrayList<>();
 
         for (String friendId : userFriendIds) {
-            userFriendList.add(jdbcTemplate.queryForObject(sql, new BeanPropertyRowMapper<>(User.class),  friendId));
+            try {
+                userFriendList.add(jdbcTemplate.queryForObject(sql, new BeanPropertyRowMapper<>(User.class), friendId));
+            } catch (EmptyResultDataAccessException e){
+                System.out.println("ERROR: user["+senderUserId+"] had a friend relation with non existent user["+friendId+"]. Removing!");
+                removeFriendFromUser(senderUserId, Long.parseLong(friendId, 10));
+            }
         }
         return userFriendList;
     }
@@ -388,15 +413,20 @@ public class DatabaseService {
     }
 
     public GameRound fetchTwoPlayerRound(Long user1id, Long user2id){
-        try {
-            GameRound game = jdbcTemplate.queryForObject(
-                    "SELECT TOP 1 * FROM GAMEROUNDS WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR (userPlayer1ID = ? AND userPlayer2ID = ?) ORDER BY timestamp DESC",
-                    new BeanPropertyRowMapper<>(GameRound.class), user1id, user2id, user2id, user1id);
-            return game;
-        } catch (Exception e) {
-            System.out.println(e);
-            return null;
-        }
+//        try {
+//            GameRound game = jdbcTemplate.queryForObject(
+//                    "SELECT TOP 1 * FROM GAMEROUNDS WHERE (userPlayer1ID = ? AND userPlayer2ID = ?) OR (userPlayer1ID = ? AND userPlayer2ID = ?) ORDER BY timestamp DESC",
+//                    new BeanPropertyRowMapper<>(GameRound.class), user1id, user2id, user2id, user1id);
+//            return game;
+//        } catch (Exception e) {
+//            System.out.println(e);
+//            return null;
+//        }
+        return jdbcTemplate.queryForObject(
+                "{CALL GetLatestGameRound(?, ?)}",
+                new Object[]{user1id, user2id},
+                new BeanPropertyRowMapper<>(GameRound.class)
+        );
     }
 
     public GameRound fetchTwoPlayerRound(Long game_id){
@@ -413,14 +443,14 @@ public class DatabaseService {
 
     @Transactional
     public void createTwoPlayerRound(Long user1id, Long user2id) {
-        char[][] board_matrix = new char[8][8];
-        Serializer<char[][]> serializer = new Serializer<>();
-
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                board_matrix[i][j] = ' ';
-            }
-        }
+//        char[][] board_matrix = new char[8][8];
+//        Serializer<char[][]> serializer = new Serializer<>();
+//
+//        for (int i = 0; i < 8; i++) {
+//            for (int j = 0; j < 8; j++) {
+//                board_matrix[i][j] = ' ';
+//            }
+//        }
 
         try {
             // Delete previous game
@@ -430,9 +460,12 @@ public class DatabaseService {
 //            jdbcTemplate.update(deleteQuery, user1id, user2id, user2id, user1id);
 
             Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-            String insertQuery = "INSERT INTO GAMEROUNDS (userPlayer1ID, userPlayer2ID, boardStatus, active, lastMove, timestamp) " +
-                    "VALUES (?, ?, ?, ?, ?, ?)";
-            jdbcTemplate.update(insertQuery, user1id, user2id, serializer.serialize(board_matrix), true, user2id, timestamp);
+//            String insertQuery = "INSERT INTO GAMEROUNDS (userPlayer1ID, userPlayer2ID, boardStatus, active, lastMove, timestamp) " +
+//                    "VALUES (?, ?, ?, ?, ?, ?)";
+//            jdbcTemplate.update(insertQuery, user1id, user2id, serializer.serialize(board_matrix), true, user2id, timestamp);
+
+            String procedureCall = "{CALL InsertGameRound(?, ?, ?, ?, ?)}";
+            jdbcTemplate.update(procedureCall, user1id, user2id, true, user2id, timestamp);
         } catch (Exception e) {
             System.out.println(e);
             // Handle exception
@@ -514,6 +547,18 @@ public class DatabaseService {
     }
 
     public void setGameActive(Long GameID, boolean status){
-        jdbcTemplate.update("UPDATE GameRounds SET active = ? WHERE ID = ?", status, GameID);
+        jdbcTemplate.update("EXEC UpdateGameRoundActiveStatus @Active = ?, @GameRoundID = ?", status, GameID);
+    }
+
+    public List<TopPlayerStats> getTopPlayerRankingView() {
+        String sql = "SELECT * FROM MostVictoriousPlayers ORDER BY Wins DESC";
+
+        List<TopPlayerStats> topPlayers = jdbcTemplate.query(sql, (rs, rowNum) ->
+                new TopPlayerStats(
+                        rs.getString("username"),
+                        rs.getInt("Wins")
+                ));
+
+        return topPlayers;
     }
 }
