@@ -1,6 +1,6 @@
 package com.uhk.sergede1.webgameappbackend.rest.free.registration;
 
-import com.uhk.sergede1.webgameappbackend.database_service.DatabaseOperationException;
+import com.uhk.sergede1.webgameappbackend.database_service.exceptions.DatabaseOperationException;
 import com.uhk.sergede1.webgameappbackend.database_service.DatabaseService;
 import com.uhk.sergede1.webgameappbackend.model.User;
 import org.springframework.beans.factory.annotation.Autowired;

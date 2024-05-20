@@ -1,6 +1,6 @@
 package com.uhk.sergede1.webgameappbackend.rest.tokenized.chat;
 
-import com.uhk.sergede1.webgameappbackend.database_service.DatabaseOperationException;
+import com.uhk.sergede1.webgameappbackend.database_service.exceptions.DatabaseOperationException;
 import com.uhk.sergede1.webgameappbackend.database_service.DatabaseService;
 import com.uhk.sergede1.webgameappbackend.database_service.exceptions.UserNotFoundException;
 import com.uhk.sergede1.webgameappbackend.model.Chat;
